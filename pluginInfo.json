@@ -1,28 +1,17 @@
 {
-	"repoName": "remote-falcon",
-	"name": "Remote Falcon",
-	"author": "James Vance",
-	"description": "Allows remote control of FPP from the Remote Falcon web application (https://remotefalcon.com)",
-	"homeURL": "https://github.com/whitesoup12/remote-falcon-plugin",
-	"srcURL": "https://github.com/whitesoup12/remote-falcon-plugin.git",
-	"bugURL": "https://github.com/whitesoup12/remote-falcon-tracker/issues",
+	"repoName": "fpp-website-jukebox",
+	"name": "Website Jukebox",
+	"author": "Kenny Robinson (@almostengr), Robinson Handy and Technology Services",
+	"description": "Allows users to select the songs they want to hear via your website.",
+	"homeURL": "https://github.com/almostengr/fpp-website-jukebox",
+	"srcURL": "https://github.com/almostengr/fpp-website-jukebox",
+	"bugURL": "https://github.com/almostengr/fpp-website-jukebox",
 	"allowUpdates": 1,
 	"versions": [
 		{
-			"minFPPVersion": "2.0",
-			"maxFPPVersion": "4.9.9",
-			"branch": "master-4",
-			"sha": "",
-			"dependencies": {
-				"plugins": [],
-				"packages": [],
-				"scripts": []
-			}
-		},
-		{
 			"minFPPVersion": "5.0",
 			"maxFPPVersion": "0",
-			"branch": "master",
+			"branch": "main",
 			"sha": "",
 			"dependencies": {
 				"plugins": [],
