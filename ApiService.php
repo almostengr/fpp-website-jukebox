@@ -5,7 +5,7 @@ interface ApiServiceInterface
     public function callAPI(string $method, string $url, array $data = array(), array $headers = array(), string $userAgent = EMPTY_STRING, bool $returnArray = false);
 }
 
-final class ApiService extends ApiServiceInterface
+final class ApiService implements ApiServiceInterface
 {
     protected function getHeaders(): array
     {

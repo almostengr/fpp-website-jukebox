@@ -1,7 +1,7 @@
 <?php
 
 require_once "/opt/fpp/www/common.php";
-
+require_once "/home/fpp/media/plugins/fpp-website-jukebox/common.php";
 
 function getHeaders(): array
 {
@@ -42,7 +42,7 @@ function callAPI(string $method, string $url, array $data = array(), array $head
 
     $response = curl_exec($curl);
     if (!$response) {
-        die("Connection Failure");
+        throw new Exception("Connection failure");
     }
     $responseCode = curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
     curl_close($curl);
@@ -54,56 +54,56 @@ function callAPI(string $method, string $url, array $data = array(), array $head
     throw new Exception(json_encode(array("code" => $responseCode, "body" => $response)));
 }
 
-define("FPP_STATUS_API_URL", "http://127.0.0.1/api/fppd/status");
-define("GET", "GET");
-define("WEBSITE_JUKEBOX", "fpp-website-jukebox");
+function getSequences(): array
+{
+    return array_diff(scandir(ReadSettingFromFile("playlistDirectory")), array('..', '.'));
+}
+
+function insertPlaylistAfterCurrent(string $playlistName)
+{
+    $route = LOCALHOST_API . "/command/Insert Playlist After Current/" . $playlistName;
+    return callAPI(GET, rawurlencode($route));
+}
+
+function getNextSongInQueue()
+{
+    $websiteApi = ReadSettingFromFile(WEBSITE_ENDPOINT, WEBSITE_JUKEBOX);
+
+    $headers = getHeaders();
+    array_push($headers, array('X-Auth-Token' => ReadSettingFromFile(API_KEY, WEBSITE_JUKEBOX)));
+
+    return callAPI(GET, $websiteApi, array(), $headers);
+}
 
 $lastFppStatusCheckTime = 0;
-
 $fppStatus = array();
+$songQueued = false;
 
 while (true) {
     $currentTime = time();
     $pollTime = 5;
-    
-    if (($currentTime - $lastFppStatusCheckTime) >= $pollTime)
-    {
-        // get the lastest status information from FPP
-        try {
-            $fppStatus = callAPI(GET, FPP_STATUS_API_URL);
+
+    try {
+        if (($currentTime - $lastFppStatusCheckTime) >= $pollTime) {
+            $fppStatus = callAPI(GET, LOCALHOST_API . "/fppd/status");
             $lastFppStatusCheckTime = $currentTime;
-        }
-        catch( Exception $exception)
-        {
-            error_log($exception->getMessage());
-            continue;
-        }
-    }
-    
-    if ($fppStatus->seconds_remaining <= $pollTime)
-    {
-        try {
-            // get next song in queue from website        
-            $websiteApi = ReadSettingFromFile($websiteEndpoint, WEBSITE_JUKEBOX);
-            
-            $headers = getHeaders();
-            array_push($headers, array('X-Auth-Token' => ReadSettingFromFile(API_KEY, WEBSITE_JUKEBOX));
-            
-            $websiteResponse = callAPI(GET, $websiteApi, array(), $headers ));
-
-//             $websiteRepsonse->data->sequenceName
-            // /api/playlist/:PlaylistName/start
-            $sequenceUri = "http://127.0.0.1/api/playlist/" . $websiteRepsonse->data->sequenceName . "/start";
-            $sequenceResponse = callAPI(GET, $sequenceUri);
-        }
-        catch (Exception $exception)
-        {
-            error_log($exception->getMessage());
-            continue;
+            $songQueued = false;
         }
 
-        // if is song, then add song to playlist 
-        // if no song, then pick random sequence and play it
+        if ($fppStatus->seconds_remaining <= $pollTime && $songQueued == false) {
+            $websiteResponse = getNextSongInQueue();
 
+            $nextSequence = $websiteResponse->data->sequenceName;
+            if ($nextSequence == null) {
+                $sequences = getSequences();
+                $nextSequence = $sequences[array_rand($sequences)];
+            }
+
+            $insertCommandResponse = insertPlaylistAfterCurrent($nextSequence);
+            $songQueued = true;
+        }
+    } catch (Exception $exception) {
+        error_log($exception->getMessage());
+        continue;
     }
 }
