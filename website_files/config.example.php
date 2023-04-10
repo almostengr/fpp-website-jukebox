@@ -1,5 +1,7 @@
 <?php
 
+define("DOMAIN_NAME", "https://example.com");
+
 // Database credentials
 define('DB_HOST', 'localhost');
 define('DB_NAME', 'your_database_name');

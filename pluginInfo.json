@@ -2,10 +2,10 @@
 	"repoName": "fpp-website-jukebox",
 	"name": "Website Jukebox",
 	"author": "Kenny Robinson (@almostengr), Robinson Handy and Technology Services",
-	"description": "Allows users to select the songs they want to hear via your website.",
+	"description": "Allows users to select the songs they want to hear via your light show website.",
 	"homeURL": "https://github.com/almostengr/fpp-website-jukebox",
 	"srcURL": "https://github.com/almostengr/fpp-website-jukebox",
-	"bugURL": "https://github.com/almostengr/fpp-website-jukebox",
+	"bugURL": "https://github.com/almostengr/fpp-website-jukebox/issues",
 	"allowUpdates": 1,
 	"versions": [
 		{

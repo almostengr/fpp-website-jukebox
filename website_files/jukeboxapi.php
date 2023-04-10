@@ -45,7 +45,7 @@ final class WebUserResponse extends BaseResponse
     public function toResponse()
     {
         http_response_code($this->responseCode);
-        header("refresh:5;url=https://thealmostengineer.com/jukebox");
+        header("refresh:5;url=" . DOMAIN_NAME . "/jukebox");
         exit($this->message . " Redirecting in 5 seconds...");
     }
 }

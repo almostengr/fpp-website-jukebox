@@ -1,0 +1,12 @@
+[
+    {
+        "name": "Jukebox Off",
+        "script": "disable_jukebox.php",
+        "args": []
+    },
+    {
+        "name": "Jukebox On",
+        "script": "enable_jukebox.php",
+        "args": []
+    }
+]
