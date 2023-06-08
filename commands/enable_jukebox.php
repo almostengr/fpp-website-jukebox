@@ -2,6 +2,8 @@
 
 <?php
 
-require_once "/home/fpp/media/plugins/fpp-website-jukebox/common.php";
+require_once "/home/fpp/media/plugins/fpp-website-jukebox/source/SettingService.php";
 
-WriteSettingToFile(JUKEBOX_ENABLED, true, JUKEBOX_PLUGIN_NAME);
+$settingRepository = new $settingRepository();
+$settingService = new SettingService($settingRepository);
+$settingService->createUpdateSetting(self::JUKEBOX_ENABLED, true);

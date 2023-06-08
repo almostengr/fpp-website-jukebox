@@ -1,58 +1,42 @@
 <?php
 
-require_once "/home/fpp/media/plugins/fpp-website-jukebox/common.php";
+require_once "/home/fpp/media/plugins/fpp-website-jukebox/source/FppApiService.php";
+require_once "/home/fpp/media/plugins/fpp-website-jukebox/source/SettingService.php";
+require_once "/home/fpp/media/plugins/fpp-website-jukebox/source/WebsiteApiService.php";
 
-function getSequences(): array
-{
-    return array_diff(scandir(ReadSettingFromFile("playlistDirectory")), array('..', '.'));
-}
-
-function insertPlaylistAfterCurrent(string $playlistName)
-{
-    $route = LOCALHOST_API . "/command/Insert Playlist After Current/" . $playlistName;
-    return callAPI(GET, $route);
-}
-
-function getNextSongInQueue()
-{
-    $websiteApi = ReadSettingFromFile(WEBSITE_ENDPOINT, JUKEBOX_PLUGIN_NAME);
-
-    $headers = getHeaders();
-    array_push($headers, array('X-Auth-Token' => ReadSettingFromFile(API_KEY, JUKEBOX_PLUGIN_NAME)));
-
-    return callAPI(GET, $websiteApi, array(), $headers);
-}
+$settingRepository = new SettingRepository();
+$settingService = new SettingService($settingRepository);
+$fppApi = new FppApiService();
+$websiteApi = new WebsiteApiService($settingService);
 
 $lastStatusCheckTime = 0;
+$pollTime = 5;
+$jukeboxEnabled = false;
 
 while (true) {
+    $currentTime = time();
+
     try {
-        $currentTime = time();
-        $pollTime = 5;
-        $getNextSongInQueue = false;
-
-        if (($currentTime - $lastStatusCheckTime) > $pollTime) {
-            $jukeboxEnabled = ReadSettingFromFile(JUKEBOX_ENABLED, JUKEBOX_PLUGIN_NAME);
-            $lastStatusCheckTime = $currentTime;
-
-            if ($jukeboxEnabled == false) {
-                continue;
-            }
-
-            $fppStatus = callAPI(GET, LOCALHOST_API . "/fppd/status");
-
-            if ($fppStatus->seconds_remaining <= $pollTime) {
-                $getNextSongInQueue = true;
-            }
+        if (($currentTime - $lastStatusCheckTime) < $pollTime) {
+            continue;
         }
 
-        if ($getNextSongInQueue) {
-            $websiteResponse = getNextSongInQueue();
-            $nextSequence = $websiteResponse->data->sequenceName;
-            $insertCommandResponse = insertPlaylistAfterCurrent($nextSequence);
+        $jukeboxEnabled = $settingService->getSetting(self::JUKEBOX_ENABLED);
+        $lastStatusCheckTime = $currentTime;
+
+        if ($jukeboxEnabled == false) {
+            continue;
         }
+
+        $fppStatus = $fppApi->getShowStatus();
+        if ($fppStatus->seconds_remaining > $pollTime) {
+            continue;
+        }
+
+        $response = $websiteApi->getNextSongInQueue();
+        $nextSequence = $response->data->sequenceName;
+        $insertCmdResponse = $fppApi->insertPlaylistAfterCurrent($nextSequence);
     } catch (Exception $exception) {
         error_log($exception->getMessage());
-        continue;
     }
 }

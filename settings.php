@@ -4,14 +4,14 @@ require_once '/home/fpp/media/plugins/fpp-website-jukebox/common.php';
 
 function validateApiKey(string $apiKey)
 {
-    WriteSettingToFile(API_KEY, $apiKey, JUKEBOX_PLUGIN_NAME);
+    WriteSettingToFile(API_KEY, $apiKey, FWJ_PLUGIN_NAME);
     return true;
 }
 
 function validateWebPollTime(int $seconds)
 {
     if ($seconds > 0) {
-        WriteSettingToFile(WEB_POLL_TIME, $seconds, JUKEBOX_PLUGIN_NAME);
+        WriteSettingToFile(WEB_POLL_TIME, $seconds, FWJ_PLUGIN_NAME);
         return true;
     }
 
@@ -21,7 +21,7 @@ function validateWebPollTime(int $seconds)
 function validateWebsiteEndpoint(string $websiteUri)
 {
     if (filter_var($websiteUri, FILTER_VALIDATE_URL) !== false) {
-        WriteSettingToFile(WEBSITE_ENDPOINT, $websiteUri, JUKEBOX_PLUGIN_NAME);
+        WriteSettingToFile(WEBSITE_ENDPOINT, $websiteUri, FWJ_PLUGIN_NAME);
         return true;
     }
 
@@ -71,7 +71,7 @@ if (!empty($_POST)) {
       </div>
       <div class="col-md">
           <input type="text" name="<?php echo WEBSITE_ENDPOINT; ?>"
-            value="<?php echo ReadSettingFromFile(WEBSITE_ENDPOINT, JUKEBOX_PLUGIN_NAME); ?>" required="required" />
+            value="<?php echo ReadSettingFromFile(WEBSITE_ENDPOINT, FWJ_PLUGIN_NAME); ?>" required="required" />
         <div class="text-muted">
           Enter the URL on your website.
         </div>
@@ -84,7 +84,7 @@ if (!empty($_POST)) {
       </div>
       <div class="col-md">
           <input type="password" name="<?php echo API_KEY; ?>"
-            value="<?php echo ReadSettingFromFile(API_KEY, JUKEBOX_PLUGIN_NAME); ?>" required="required" />
+            value="<?php echo ReadSettingFromFile(API_KEY, FWJ_PLUGIN_NAME); ?>" required="required" />
         <div class="text-muted">
           Enter the API key that you have defined with the website configuration. The longer the key, the better.
         </div>
@@ -97,7 +97,7 @@ if (!empty($_POST)) {
       </div>
       <div class="col-md">
           <input type="number" name="<?php echo WEB_POLL_TIME; ?>"
-            value="<?php echo ReadSettingFromFile(WEB_POLL_TIME, JUKEBOX_PLUGIN_NAME); ?>" required="required" />
+            value="<?php echo ReadSettingFromFile(WEB_POLL_TIME, FWJ_PLUGIN_NAME); ?>" required="required" />
         <div class="text-muted">
           Enter the number of seconds before the end of the song to check for queued song requests.
         </div>

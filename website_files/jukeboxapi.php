@@ -80,19 +80,9 @@ abstract class BaseRequestService
             (new JsonResponse(401, "Unauthorized"))->toJsonEncode();
         }
     }
-}
 
-final class GetRequestService extends BaseRequestService
-{
-    public function processRequest(): void
-    {
-        $this->validateApiKey();
-        $this->connectToDatabase();
-        $song = $this->getFirstUnplayedSong();
-        $this->updateSongAsPlayed($song);
-    }
 
-    private function getFirstUnplayedSong(): array
+    protected function getFirstUnplayedSong(): array
     {
         $query = "SELECT id, sequencename, createdtime FROM song_request WHERE played = 0 ORDER BY createdTime ASC LIMIT 1";
         $stmt = $this->mysqli->prepare($query);
@@ -107,6 +97,17 @@ final class GetRequestService extends BaseRequestService
         }
 
         return $result->fetch_assoc();
+    }
+}
+
+final class UpdateRequestService extends BaseRequestService
+{
+    public function processRequest(): void
+    {
+        $this->validateApiKey();
+        $this->connectToDatabase();
+        $song = $this->getFirstUnplayedSong();
+        $this->updateSongAsPlayed($song);
     }
 
     private function updateSongAsPlayed(array $row): void
@@ -127,13 +128,13 @@ final class PostRequestService extends BaseRequestService
 {
     private string $sequenceName;
     private string $code;
-    private int $MAX_UNPLAYED_SONGS_PER_DEVICE = 2;
+    const MAX_UNPLAYED_SONGS_PER_DEVICE = 3;
     private string $UNEXPECTED_ERROR_MESSAGE = "Error: Unexpected error";
 
     public function __construct(string $sequenceName, string $code)
     {
         if (empty($sequenceName) || empty($code)) {
-            (new WebUserResponse(400, "Error: Sequence Name and Code are required."))->toResponse();
+            (new WebUserResponse(400, "Error: Sequence and Code are required."))->toResponse();
         }
 
         $this->sequenceName = $sequenceName;
@@ -159,7 +160,7 @@ final class PostRequestService extends BaseRequestService
         }
 
         $result = $stmt->get_result();
-        if ($result->num_rows >= $this->MAX_UNPLAYED_SONGS_PER_DEVICE) {
+        if ($result->num_rows >= self::MAX_UNPLAYED_SONGS_PER_DEVICE) {
             $this->mysqli->close();
             (new WebUserResponse(500, $this->UNEXPECTED_ERROR_MESSAGE))->toResponse();
         }
@@ -171,7 +172,7 @@ final class PostRequestService extends BaseRequestService
             case 'Monday':
                 return MONDAY_CODE;
             case 'Tuesday':
-                return TUEDAY_CODE;
+                return TUESDAY_CODE;
             case 'Wednesday':
                 return WEDNESDAY_CODE;
             case 'Thursday':
@@ -246,9 +247,21 @@ final class DeleteRequestService extends BaseRequestService
     }
 }
 
+final class GetRequestService extends BaseRequestService
+{
+    public function processRequest(): void
+    {
+        $this->connectToDatabase();
+        $this->getFirstUnplayedSong();
+    }
+}
+
 switch ($_SERVER['REQUEST_METHOD']) {
     case 'GET':
-        (new GetRequestService())->processRequest();
+        // get the current song information
+        break;
+    case 'PUT':
+        (new UpdateRequestService())->processRequest();
         break;
     case 'POST':
         $postRequest = new PostRequestService($_POST["sequenceName"], $_POST["code"]);
