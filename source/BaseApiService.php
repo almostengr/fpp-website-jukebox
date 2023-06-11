@@ -7,13 +7,12 @@ abstract class BaseApiService extends BaseService
     const DELETE = "DELETE";
     const GET = "GET";
     const POST = "POST";
+    const PUT = "PUT";
     const X_AUTH_TOKEN = "X-Auth-Token";
 
     protected function getHeaders(): array
     {
-        return array(
-            "Content-Type" => "application/json",
-        );
+        return array("Content-Type" => "application/json");
     }
 
     protected function callAPI(string $method, string $url, array $data = array(), array $headers = array(), string $userAgent = EMPTY_STRING, bool $returnArray = false)
@@ -26,8 +25,8 @@ abstract class BaseApiService extends BaseService
                     curl_setopt($curl, CURLOPT_POSTFIELDS, $data);
                 break;
 
-            case "PUT":
-                curl_setopt($curl, CURLOPT_CUSTOMREQUEST, "PUT");
+            case self::PUT:
+                curl_setopt($curl, CURLOPT_CUSTOMREQUEST, self::PUT);
                 if ($data)
                     curl_setopt($curl, CURLOPT_POSTFIELDS, $data);
                 break;

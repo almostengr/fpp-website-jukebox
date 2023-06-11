@@ -10,17 +10,17 @@ interface SettingRepositoryInterface
 
 final class SettingRepository implements SettingRepositoryInterface
 {
-    const FWJ_PLUGIN_NAME = "fpp_weather_monitor_plugin";
-
+    private string $pluginName = "fpp-website-jukebox";
+    
     public function getSetting(string $key): string
     {
-        $value = ReadSettingFromFile($key, self::FWJ_PLUGIN_NAME);
+        $value = ReadSettingFromFile($key, $this->pluginName);
         return str_replace("_", " ", $value);
     }
 
     public function createUpdateSetting(string $key, string $value): void
     {
         $value = str_replace(" ", "_", $value);
-        WriteSettingToFile($key, $value, self::FWJ_PLUGIN_NAME);
+        WriteSettingToFile($key, $value, $this->pluginName);
     }
 }

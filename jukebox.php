@@ -11,7 +11,7 @@ $websiteApi = new WebsiteApiService($settingService);
 
 $lastStatusCheckTime = 0;
 $pollTime = 5;
-$jukeboxEnabled = false;
+$lastSongName = "";
 
 while (true) {
     $currentTime = time();
@@ -21,15 +21,15 @@ while (true) {
             continue;
         }
 
-        $jukeboxEnabled = $settingService->getSetting(self::JUKEBOX_ENABLED);
         $lastStatusCheckTime = $currentTime;
+        $fppStatus = $fppApi->getShowStatus();
 
-        if ($jukeboxEnabled == false) {
-            continue;
+        if ($fppStatus->current_song != $lastSongName) {
+            $websiteApi->updateCurrentSong($fppStatus->current_song);
         }
 
-        $fppStatus = $fppApi->getShowStatus();
-        if ($fppStatus->seconds_remaining > $pollTime) {
+        $checkQueueTime = $settingService->getSetting(POLL_TIME);
+        if ($fppStatus->seconds_remaining > $checkQueueTime) {
             continue;
         }
 

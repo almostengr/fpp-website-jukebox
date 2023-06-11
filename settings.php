@@ -1,37 +1,14 @@
 <?php
 
-require_once '/home/fpp/media/plugins/fpp-website-jukebox/common.php';
+require_once '/home/fpp/media/plugins/fpp-website-jukebox/source/SettingService.php';
 
-function validateApiKey(string $apiKey)
-{
-    WriteSettingToFile(API_KEY, $apiKey, FWJ_PLUGIN_NAME);
-    return true;
-}
-
-function validateWebPollTime(int $seconds)
-{
-    if ($seconds > 0) {
-        WriteSettingToFile(WEB_POLL_TIME, $seconds, FWJ_PLUGIN_NAME);
-        return true;
-    }
-
-    return "Poll time must be greater than zero";
-}
-
-function validateWebsiteEndpoint(string $websiteUri)
-{
-    if (filter_var($websiteUri, FILTER_VALIDATE_URL) !== false) {
-        WriteSettingToFile(WEBSITE_ENDPOINT, $websiteUri, FWJ_PLUGIN_NAME);
-        return true;
-    }
-
-    return "Please enter a valid wesite endpoint URL";
-}
+$settingRepository = new $settingRepository();
+$settingService = new $settingService($settingRepository);
 
 $errors = array();
 if (!empty($_POST)) {
-    array_push($errors, validateApiKey($_POST[API_KEY]));
-    array_push($errors, validateWebPollTime($_POST[WEB_POLL_TIME]));
+  array_push($errors, $settingService->createUpdateSetting(API_KEY, $_POST[API_KEY]));
+  array_push($errors, $settingService->createUpdateSetting(POLL_ERR, $_POST[POLL_TIME]));
 }
 ?>
 
@@ -41,15 +18,15 @@ if (!empty($_POST)) {
   <?php
   $succeeded = 0;
   foreach ($errors as $error) {
-      if ($error !== true && !empty($error)) {
-          echo "<div class='p-1 alert bg-danger text-white font-weight-bold'>" . $error . "</div>";
-          continue;
-      }
-      $succeeded++;
+    if ($error !== true && !empty($error)) {
+      echo "<div class='p-1 alert bg-danger text-white font-weight-bold'>" . $error . "</div>";
+      continue;
+    }
+    $succeeded++;
   }
 
   if (!empty($_POST) && sizeof($errors) == $succeeded) {
-      echo "<div class='p-1 alert bg-success text-white font-weight-bold'>Configuration saved successfully.</div>";
+    echo "<div class='p-1 alert bg-success text-white font-weight-bold'>Configuration saved successfully.</div>";
   }
   ?>
 
@@ -70,10 +47,10 @@ if (!empty($_POST)) {
         Website Endpoint
       </div>
       <div class="col-md">
-          <input type="text" name="<?php echo WEBSITE_ENDPOINT; ?>"
-            value="<?php echo ReadSettingFromFile(WEBSITE_ENDPOINT, FWJ_PLUGIN_NAME); ?>" required="required" />
+        <input type="text" name="<?php echo WEBSITE_ENDPOINT; ?>" value="<?php echo $settingService->getSetting(WEBSITE_ENDPOINT); ?>"
+          required="required" />
         <div class="text-muted">
-          Enter the URL on your website.
+          Enter the URL on your website to the "jukeboxapi.php" file.
         </div>
       </div>
     </div>
@@ -83,8 +60,7 @@ if (!empty($_POST)) {
         Website API Key
       </div>
       <div class="col-md">
-          <input type="password" name="<?php echo API_KEY; ?>"
-            value="<?php echo ReadSettingFromFile(API_KEY, FWJ_PLUGIN_NAME); ?>" required="required" />
+        <input type="password" name="<?php echo API_KEY; ?>" value="<?php echo $settingService->getSetting(API_KEY); ?>" required="required" />
         <div class="text-muted">
           Enter the API key that you have defined with the website configuration. The longer the key, the better.
         </div>
@@ -96,8 +72,7 @@ if (!empty($_POST)) {
         Poll Time
       </div>
       <div class="col-md">
-          <input type="number" name="<?php echo WEB_POLL_TIME; ?>"
-            value="<?php echo ReadSettingFromFile(WEB_POLL_TIME, FWJ_PLUGIN_NAME); ?>" required="required" />
+        <input type="number" name="<?php echo POLL_TIME; ?>" value="<?php echo $settingService->getSetting(POLL_TIME); ?>" required="required" />
         <div class="text-muted">
           Enter the number of seconds before the end of the song to check for queued song requests.
         </div>

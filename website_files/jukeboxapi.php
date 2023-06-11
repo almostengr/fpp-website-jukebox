@@ -1,16 +1,17 @@
 <?php
 
 require_once('../config.php');
+date_default_timezone_set("America/Chicago");
 
 abstract class BaseResponse
 {
-    private int $responseCode;
-    private string $message;
+    public int $responseCode;
+    public string $message;
 }
 
 final class JsonResponse extends BaseResponse
 {
-    private array $data;
+    public array $data;
 
     public function __construct(int $responseCode, string $message, array $data = array())
     {
@@ -34,27 +35,11 @@ final class JsonResponse extends BaseResponse
     }
 }
 
-final class WebUserResponse extends BaseResponse
-{
-    public function __construct(int $responseCode, string $message)
-    {
-        $this->responseCode = $responseCode;
-        $this->message = $message;
-    }
-
-    public function toResponse()
-    {
-        http_response_code($this->responseCode);
-        header("refresh:5;url=" . DOMAIN_NAME . "/jukebox");
-        exit($this->message . " Redirecting in 5 seconds...");
-    }
-}
-
 abstract class BaseRequestService
 {
-    protected mysqli $mysqli;
-    protected string $currentDateTime;
-    protected string $visitorIpAddress;
+    public mysqli $mysqli;
+    public string $currentDateTime;
+    public string $visitorIpAddress;
 
     public function __construct()
     {
@@ -62,33 +47,60 @@ abstract class BaseRequestService
         $this->visitorIpAddress = $_SERVER['REMOTE_ADDR'];
     }
 
-    abstract function processRequest(): void;
-
-    protected function connectToDatabase()
+    public function connectToDatabase()
     {
         $this->mysqli = mysqli_connect(DB_HOST, DB_USER, DB_PASS, DB_NAME);
 
         if (mysqli_connect_errno()) {
-            (new JsonResponse(500, 'Failed to connect to database: ' . mysqli_connect_error()))->toJsonEncode();
+            throw new Exception("Failed to connect to database.", 500);
         }
     }
 
-    protected function validateApiKey()
+    public function validateApiKey()
     {
+        $xAuthToken = 'X-Auth-Token';
         $headers = apache_request_headers();
-        if (!isset($headers['X-Auth-Token']) || $headers['X-Auth-Token'] !== API_KEY) {
-            (new JsonResponse(401, "Unauthorized"))->toJsonEncode();
+        if (!isset($headers[$xAuthToken]) || $headers[$xAuthToken] !== API_KEY) {
+            throw new Exception("Unauthorized.", 401);
         }
     }
+}
 
+final class PutRequestService extends BaseRequestService
+{
+    private string $action;
+    private string $songName;
 
-    protected function getFirstUnplayedSong(): array
+    public function __construct(string $json)
     {
-        $query = "SELECT id, sequencename, createdtime FROM song_request WHERE played = 0 ORDER BY createdTime ASC LIMIT 1";
+        if (empty($json)) {
+            throw new Exception("Bad request.", 400);
+        }
+
+        $decodedJson = json_decode($json, false);
+        $this->action = $decodedJson->action;
+        $this->songName = $decodedJson->songName;
+    }
+
+    public function getAction(): string
+    {
+        return $this->action;
+    }
+
+    public function updatePlayingRequestToPlayed(): void
+    {
+        $query = "update songrequest set played = 2 where played = 1";
+        $statement = $this->mysqli->prepare($query);
+        $statement->execute();
+    }
+
+    public function getFirstUnplayedRequest(): array
+    {
+        $query = "SELECT id, sequencename, createdtime FROM SongRequest WHERE played = 0 ORDER BY createdTime ASC LIMIT 1";
         $stmt = $this->mysqli->prepare($query);
 
         if (!$stmt->execute()) {
-            (new JsonResponse(500, "Error executing statement"))->toJsonEncode();
+            throw new Exception("Error getting song.", 500);
         }
 
         $result = $stmt->get_result();
@@ -98,81 +110,89 @@ abstract class BaseRequestService
 
         return $result->fetch_assoc();
     }
-}
 
-final class UpdateRequestService extends BaseRequestService
-{
-    public function processRequest(): void
+    public function updateCurrentSongPlaying()
     {
-        $this->validateApiKey();
-        $this->connectToDatabase();
-        $song = $this->getFirstUnplayedSong();
-        $this->updateSongAsPlayed($song);
+        $query = "update songsettings set value = ? where identifier = 'currentsong'";
+        $statement = $this->mysqli->prepare($query);
+        $statement->bind_param("ss", $this->songName);
+
+        if (!$statement->execute()) {
+            throw new Exception("Error updating song.", 500);
+        }
     }
 
-    private function updateSongAsPlayed(array $row): void
+    public function updateRequestToPlaying(array $row): void
     {
-        $updateQuery = "UPDATE song_request SET played = 1, modifiedTime = ?, modifiedIpAddress = ? WHERE id = ?";
+        $updateQuery = "UPDATE SongRequest SET played = 1, modifiedTime = ?, modifiedIpAddress = ? WHERE id = ?";
         $updateStmt = $this->mysqli->prepare($updateQuery);
 
         $updateStmt->bind_param('ssi', $this->currentDateTime, $this->visitorIpAddress, $row['id']);
         if (!$updateStmt->execute()) {
-            (new JsonResponse(500, "Error updating song"))->toJsonEncode();
+            throw new Exception("Error updating song.", 500);
         }
 
         (new JsonResponse(200, "", $row))->toJsonEncode();
+    }
+
+    public function markAllRequestsAsPlayed(): void
+    {
+        $updateQuery = "UPDATE SongRequest SET played = 2, modifiedTime = ?, modifiedIpAddress = ? where played = 0 or played = 1";
+        $updateStmt = $this->mysqli->prepare($updateQuery);
+        $updateStmt->bind_param('ss', $this->currentDateTime, $this->visitorIpAddress);
+        if (!$updateStmt->execute()) {
+            throw new Exception("Error updating song.", 500);
+        }
+
+        (new JsonResponse(200, ""))->toJsonEncode();
     }
 }
 
 final class PostRequestService extends BaseRequestService
 {
-    private string $sequenceName;
-    private string $code;
-    const MAX_UNPLAYED_SONGS_PER_DEVICE = 3;
-    private string $UNEXPECTED_ERROR_MESSAGE = "Error: Unexpected error";
+    public string $sequenceName;
+    public string $code;
+    public string $ipAddress;
 
-    public function __construct(string $sequenceName, string $code)
+    public function __construct(string $json)
     {
-        if (empty($sequenceName) || empty($code)) {
-            (new WebUserResponse(400, "Error: Sequence and Code are required."))->toResponse();
+        if (empty($json)) {
+            throw new Exception("Song and Code are required.", 400);
         }
 
-        $this->sequenceName = $sequenceName;
-        $this->code = $code;
+        $decodedJson = json_decode($json, false);
+        $this->sequenceName = $decodedJson->sequenceName;
+        $this->code = $decodedJson->code;
+        $this->ipAddress = $_SERVER['REMOTE_ADDR'];
     }
 
-    public function processRequest(): void
+    public function maxUnplayedSongsPerDevice(): int
     {
-        $this->validateCode();
-        $this->connectToDatabase();
-        $this->preventSpamAndFloodRequests();
-        $this->validateSequenceNotAlreadyInQueue();
-        $songsAhead = $this->getNumberOfSongsInQueue();
-        $this->addSongToQueue($songsAhead);
+        return 2;
     }
 
-    private function preventSpamAndFloodRequests(): void
+    public function preventSpamAndFloodRequests(): void
     {
-        $stmt = $this->mysqli->prepare("SELECT * FROM song_request WHERE createdIpaddress = ? AND played = 0");
-        $stmt->bind_param("s", $this->visitorIpAddress);
+        $stmt = $this->mysqli->prepare("SELECT * FROM SongRequest WHERE createdIpaddress = ? AND played = 0");
+        $stmt->bind_param("s", $this->ipAddress);
         if (!$stmt->execute()) {
-            (new WebUserResponse(500, $this->UNEXPECTED_ERROR_MESSAGE))->toResponse();
+            throw new Exception("Unexpected error.", 500);
         }
 
         $result = $stmt->get_result();
-        if ($result->num_rows >= self::MAX_UNPLAYED_SONGS_PER_DEVICE) {
+        if ($result->num_rows >= $this->maxUnplayedSongsPerDevice()) {
             $this->mysqli->close();
-            (new WebUserResponse(500, $this->UNEXPECTED_ERROR_MESSAGE))->toResponse();
+            throw new Exception("Whoa there! Let someone else pick a song. Once your requests have been played, you may pick more songs.", 400);
         }
     }
 
-    private function getCodeForToday(): string
+    public function getCodeForToday(): string
     {
         switch (date('l')) {
             case 'Monday':
                 return MONDAY_CODE;
             case 'Tuesday':
-                return TUESDAY_CODE;
+                return TUEDAY_CODE;
             case 'Wednesday':
                 return WEDNESDAY_CODE;
             case 'Thursday':
@@ -181,66 +201,57 @@ final class PostRequestService extends BaseRequestService
                 return FRIDAY_CODE;
             case 'Saturday':
                 return SATURDAY_CODE;
-            case 'Sunday':
-                return SUNDAY_CODE;
             default:
-                return "";
+                return SUNDAY_CODE;
         }
     }
 
-    private function validateCode(): void
+    public function validateCode(): void
     {
         $validCodeForToday = $this->getCodeForToday();
         if ($this->code !== $validCodeForToday) {
-            (new WebUserResponse(400, "Error: Invalid code. Please listen to the show announcement for today's code."))->toResponse();
+            throw new Exception("Invalid code. Please listen to the show announcement for todays code.", 400);
         }
     }
 
-    private function validateSequenceNotAlreadyInQueue(): void
+    public function validateRequestNotAlreadyInQueue(): void
     {
-        $stmt = $this->mysqli->prepare("SELECT * FROM song_request WHERE sequenceName = ? AND played = 0");
+        $stmt = $this->mysqli->prepare("SELECT * FROM SongRequest WHERE sequenceName = ? AND played = 0");
         $stmt->bind_param("s", $sequenceName);
         $stmt->execute();
         $result = $stmt->get_result();
         if ($result->num_rows > 0) {
             $this->mysqli->close();
-            (new WebUserResponse(400, "Error: Song has already been requested. Please wait for the song to play."))->toResponse();
+            throw new Exception("Song has already been requested. Please wait for the song to play.", 400);
         }
     }
 
-    private function getNumberOfSongsInQueue(): int
+    public function getNumberOfRequestsInQueue(): int
     {
-        $stmt = $this->mysqli->prepare("SELECT * FROM song_request WHERE played = 0");
+        $stmt = $this->mysqli->prepare("SELECT * FROM SongRequest WHERE played = 0");
         $stmt->execute();
         $result = $stmt->get_result();
         return $result->num_rows;
     }
 
-    private function addSongToQueue(int $songsAhead): void
+    public function addRequestToQueue(int $songsAhead): void
     {
-        $stmt = $this->mysqli->prepare("INSERT INTO song_request (sequenceName, createdIpAddress, modifiedIpAddress) VALUES (?, ?, ?)");
-        $stmt->bind_param("sss", $this->sequenceName, $this->visitorIpAddress, $this->visitorIpAddress);
+        $stmt = $this->mysqli->prepare("INSERT INTO SongRequest (sequenceName, createdIpAddress, modifiedIpAddress) VALUES (?, ?, ?)");
+        $stmt->bind_param("sss", $this->sequenceName, $this->ipAddress, $this->ipAddress);
         $stmt->execute();
-        (new WebUserResponse(201, "Success: Your song request has been submitted. There are " . $songsAhead . " song(s) ahead of your request."))->toResponse();
+        (new JsonResponse("Your request has been submitted. There are " . $songsAhead . " song(s) ahead of your request.", 201))->toJsonEncode();
     }
 }
 
 final class DeleteRequestService extends BaseRequestService
 {
-    public function processRequest(): void
+    public function markAllRequestsAsPlayed(): void
     {
-        $this->validateApiKey();
-        $this->connectToDatabase();
-        $this->markAllRequestsAsPlayed();
-    }
-
-    private function markAllRequestsAsPlayed(): void
-    {
-        $updateQuery = "UPDATE song_request SET played = 1, modifiedTime = ?, modifiedIpAddress = ? where played = 0";
+        $updateQuery = "UPDATE SongRequest SET played = 2, modifiedTime = ?, modifiedIpAddress = ? where played = 0 or played = 1";
         $updateStmt = $this->mysqli->prepare($updateQuery);
         $updateStmt->bind_param('ss', $this->currentDateTime, $this->visitorIpAddress);
         if (!$updateStmt->execute()) {
-            (new JsonResponse(500, "Error updating data"))->toJsonEncode();
+            throw new Exception("Error updating data.", 500);
         }
 
         (new JsonResponse(200, ""))->toJsonEncode();
@@ -249,27 +260,72 @@ final class DeleteRequestService extends BaseRequestService
 
 final class GetRequestService extends BaseRequestService
 {
-    public function processRequest(): void
+    public function getPlayingSong(): void
     {
-        $this->connectToDatabase();
-        $this->getFirstUnplayedSong();
+        $query = "SELECT value from songsetting where identifier = 'currentsong'";
+        $statement = $this->mysqli->prepare($query);
+        if (!$statement->execute()) {
+            throw new Exception("Error updating data.", 500);
+        }
+
+        $result = $statement->get_result();
+        $song = $result->fetch_assoc();
+        $song = str_replace(".fseq", "", $song['value']);
+        (new JsonResponse(200, $song))->toJsonEncode();
     }
 }
 
-switch ($_SERVER['REQUEST_METHOD']) {
-    case 'GET':
-        // get the current song information
-        break;
-    case 'PUT':
-        (new UpdateRequestService())->processRequest();
-        break;
-    case 'POST':
-        $postRequest = new PostRequestService($_POST["sequenceName"], $_POST["code"]);
-        $postRequest->processRequest();
-        break;
-    case 'DELETE':
-        (new DeleteRequestService())->processRequest();
-        break;
-    default:
-        (new JsonResponse(405, "Method not allowed"))->toJsonEncode();
+$requestMethod = $_SERVER['REQUEST_METHOD'] ?? null;
+$phpInput = "php://input";
+
+try {
+    switch ($requestMethod) {
+        case 'PUT':
+            $json = file_get_contents($phpInput);
+            $request = new PutRequestService($json);
+            $request->validateApiKey();
+            $request->connectToDatabase();
+
+            switch ($request->getAction()) {
+                case "nextsong":
+                    $request->updatePlayingRequestToPlayed();
+                    $song = $request->getFirstUnplayedRequest();
+                    break;
+
+                case "clearqueue":
+                    $request->markAllRequestsAsPlayed();
+                    break;
+
+                case "playing":
+                    $request->updateCurrentSongPlaying();
+                    break;
+
+                default:
+                    throw new Exception("Bad request.", 400);
+            }
+            break;
+
+        case 'GET':
+            $request = new GetRequestService();
+            $request->connectToDatabase();
+            $request->getPlayingSong();
+            break;
+
+        case 'POST':
+            $json = file_get_contents($phpInput);
+            $request = new PostRequestService($json);
+            $request->validateCode();
+            $request->connectToDatabase();
+            $request->preventSpamAndFloodRequests();
+            $request->validateRequestNotAlreadyInQueue();
+            $songsAhead = $request->getNumberOfRequestsInQueue();
+            $request->addRequestToQueue($songsAhead);
+            break;
+
+        default:
+            (new JsonResponse(405, "Method not allowed."))->toJsonEncode();
+    }
+} catch (Exception $exception) {
+    $jsonResponse = new JsonResponse($exception->getCode(), $exception->getMessage());
+    $jsonResponse->toJsonEncode();
 }

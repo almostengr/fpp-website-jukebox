@@ -1,19 +1,16 @@
 <html>
 
 <head>
+    <script type="text/javascript" src="/js/scripts.min.js"></script>
 </head>
 
 <body>
-    <script type="text/javascript">
-        const songPlaylist = async() => {
-            const response = await fetch('/jukeboxapi.php');
-            const jsonResponse = await response.json();
-        }
-    </script>
+    <div id="currentSong" class="alert alert-primary" role="alert">Getting show details...</div>
+    <div id="alert" class="alert d-none alert-dismissible fade show" role="alert"></div>
     <p>
         Are you currently watching the light show? Pick the song that you would like to hear next!
     </p>
-    <form method="post" action="/jukeboxapi.php">
+    <form id="jukeboxForm" onsubmit="event.preventDefault(); submitJukeboxRequest();">
         <div class="form-group">
             <label for="sequenceName" class="required">Select A Song</label>
             <select name="sequenceName" class="form-control" required>
@@ -25,7 +22,7 @@
         <div class="form-group">
             <label for="code" class="required">Code</label>
             <input class="form-control" type="text" name="code" required />
-            <small class="form-text  text-muted">
+            <small class="form-text text-muted">
                 The code will be mentioned during the show announcements.
             </small>
         </div>
@@ -33,6 +30,9 @@
             <button class="btn btn-dark" type="submit">Request Song</button>
         </div>
     </form>
+    <script type="text/javascript">
+        window.onload = updateCurrentSong();
+    </script>
 </body>
 
 </html>

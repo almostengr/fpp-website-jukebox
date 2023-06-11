@@ -15,23 +15,37 @@ final class WebsiteApiService extends BaseApiService implements WebsiteApiServic
         $this->settingService = $settingService;
     }
 
-    public function getNextSongInQueue()
+    protected function updateCurrentSong(string $songName)
     {
-        $websiteApi = $this->settingService->getSetting(self::WEBSITE_ENDPOINT);
+        $songName = str_replace(".mp3", "", $songName);
+        $websiteApi = $this->settingService->getSetting(WEBSITE_ENDPOINT);
 
         $headers = $this->getHeaders();
         array_push($headers, array(self::X_AUTH_TOKEN => $this->settingService->getSetting(API_KEY)));
 
-        return $this->callAPI(self::GET, $websiteApi, array(), $this->getHeaders(), "", false);
+        $data = array("action" => "playing", "songname" => $songName);
+        return $this->callAPI(self::PUT, $websiteApi, $data, $this->getHeaders(), "", false);
+    }
+
+    public function getNextSongInQueue()
+    {
+        $websiteApi = $this->settingService->getSetting(WEBSITE_ENDPOINT);
+
+        $headers = $this->getHeaders();
+        array_push($headers, array(self::X_AUTH_TOKEN => $this->settingService->getSetting(API_KEY)));
+
+        $data = array("action" => "nextsong");
+        return $this->callAPI(self::PUT, $websiteApi, $data, $this->getHeaders(), "", false);
     }
 
     public function deleteQueue()
     {
-        $websiteApi = $this->settingService->getSetting(self::WEBSITE_ENDPOINT);
+        $websiteApi = $this->settingService->getSetting(WEBSITE_ENDPOINT);
 
         $headers = $this->getHeaders();
         array_push($headers, array(self::X_AUTH_TOKEN => $this->settingService->getSetting(API_KEY)));
 
-        return $this->callAPI(self::DELETE, $websiteApi, array(), $this->getHeaders(), "", false);
+        $data = array("action" => "clearqueue");
+        return $this->callAPI(self::PUT, $websiteApi, $data, $this->getHeaders(), "", false);
     }
 }
