@@ -1,5 +1,4 @@
 <?php
-
 require_once '/home/fpp/media/plugins/fpp-website-jukebox/source/SettingService.php';
 
 $settingRepository = new $settingRepository();
@@ -8,7 +7,7 @@ $settingService = new $settingService($settingRepository);
 $errors = array();
 if (!empty($_POST)) {
   array_push($errors, $settingService->createUpdateSetting(API_KEY, $_POST[API_KEY]));
-  array_push($errors, $settingService->createUpdateSetting(POLL_ERR, $_POST[POLL_TIME]));
+  array_push($errors, $settingService->createUpdateSetting(POLL_TIME, $_POST[POLL_TIME]));
 }
 ?>
 

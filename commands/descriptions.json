@@ -1,17 +1,7 @@
 [
     {
-        "name": "Jukebox Off",
-        "script": "disable_jukebox.php",
-        "args": []
-    },
-    {
-        "name": "Jukebox On",
-        "script": "enable_jukebox.php",
-        "args": []
-    },
-    {
         "name": "Clear Queue",
-        "script" :"clear_queue.php",
+        "script": "clear_queue.php",
         "args": []
     }
 ]

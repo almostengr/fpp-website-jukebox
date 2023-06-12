@@ -11,7 +11,7 @@ $websiteApi = new WebsiteApiService($settingService);
 
 $lastStatusCheckTime = 0;
 $pollTime = 5;
-$lastSongName = "";
+$currentSong = "";
 
 while (true) {
     $currentTime = time();
@@ -24,8 +24,18 @@ while (true) {
         $lastStatusCheckTime = $currentTime;
         $fppStatus = $fppApi->getShowStatus();
 
-        if ($fppStatus->current_song != $lastSongName) {
+        if ($fppStatus->current_song != $currentSong) {
+            if ($currentSong === "")
+            {
+                $websiteApi->deleteQueue();
+            }
+            
             $websiteApi->updateCurrentSong($fppStatus->current_song);
+            $currentSong = $fppStatus->current_song;
+        }
+
+        if ($fppStatus->status_name != "playing") {
+            continue;
         }
 
         $checkQueueTime = $settingService->getSetting(POLL_TIME);
@@ -35,7 +45,11 @@ while (true) {
 
         $response = $websiteApi->getNextSongInQueue();
         $nextSequence = $response->data->sequenceName;
-        $insertCmdResponse = $fppApi->insertPlaylistAfterCurrent($nextSequence);
+        $sequenceFound = $fppApi->verifySequenceExists($nextSequence);
+
+        if ($sequenceFound !== false) {
+            $fppApi->insertPlaylistAfterCurrent($nextSequence);
+        }
     } catch (Exception $exception) {
         error_log($exception->getMessage());
     }

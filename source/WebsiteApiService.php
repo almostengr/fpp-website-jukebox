@@ -18,6 +18,7 @@ final class WebsiteApiService extends BaseApiService implements WebsiteApiServic
     protected function updateCurrentSong(string $songName)
     {
         $songName = str_replace(".mp3", "", $songName);
+        $songName = str_replace(".mp4", "", $songName);
         $websiteApi = $this->settingService->getSetting(WEBSITE_ENDPOINT);
 
         $headers = $this->getHeaders();

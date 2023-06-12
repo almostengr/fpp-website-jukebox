@@ -4,7 +4,6 @@ require_once('/home/fpp/media/plugins/fpp-website-jukebox/source/BaseService.php
 
 abstract class BaseApiService extends BaseService
 {
-    const DELETE = "DELETE";
     const GET = "GET";
     const POST = "POST";
     const PUT = "PUT";
