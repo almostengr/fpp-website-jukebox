@@ -16,20 +16,20 @@ $currentSong = "";
 while (true) {
     $currentTime = time();
 
+    if (($currentTime - $lastStatusCheckTime) < $pollTime) {
+        continue;
+    }
+    
     try {
-        if (($currentTime - $lastStatusCheckTime) < $pollTime) {
-            continue;
-        }
-
-        $lastStatusCheckTime = $currentTime;
         $fppStatus = $fppApi->getShowStatus();
+        $lastStatusCheckTime = $currentTime;
 
         if ($fppStatus->current_song != $currentSong) {
             if ($currentSong === "")
             {
                 $websiteApi->deleteQueue();
             }
-            
+
             $websiteApi->updateCurrentSong($fppStatus->current_song);
             $currentSong = $fppStatus->current_song;
         }
@@ -47,9 +47,12 @@ while (true) {
         $nextSequence = $response->data->sequenceName;
         $sequenceFound = $fppApi->verifySequenceExists($nextSequence);
 
-        if ($sequenceFound !== false) {
-            $fppApi->insertPlaylistAfterCurrent($nextSequence);
+        if ($sequenceFound === false) {
+            $lastStatusCheckTime = 0;
+            continue;
         }
+
+        $fppApi->insertPlaylistAfterCurrent($nextSequence);
     } catch (Exception $exception) {
         error_log($exception->getMessage());
     }

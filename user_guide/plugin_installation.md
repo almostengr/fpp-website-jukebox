@@ -17,7 +17,7 @@ Before installing the plugin, be sure that you have completed the following task
 * Login to the database for your website. Execute the query in songrequest.sql and in songsettings.sql. Ensure that the sql commands complete successfully.
 
 
-## Installation
+## FPP Plugin Setup
 
 To install this plugin
 
